@@ -2,7 +2,7 @@ import os
 import argparse
 
 def split(name):
-    filepath = 'linemod/cfg/' + name + "/"
+    filepath = '../linemod/cfg/' + name + "/"
     label = os.path.join(filepath, 'labels.txt')
     print('filepath: {}'.format(filepath))
 

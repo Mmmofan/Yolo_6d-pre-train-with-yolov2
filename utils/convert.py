@@ -2,7 +2,7 @@ import os
 import argparse
 
 def convert(name, label, num):
-    filepath = 'linemod/{}/'.format(name)
+    filepath = '../linemod/{}/'.format(name)
     txt = os.path.join(filepath, 'labels.txt')
     print("filepath: {}\ntxt: {}".format(filepath, txt))
     number = num + 1
@@ -24,4 +24,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     convert(args.name, args.label, args.num)
-        
+
