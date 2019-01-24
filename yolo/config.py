@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-# Author:leeyoshinari
+#================================================================
+#   Copyright (C) 2019 * Ltd. All rights reserved.
+#
+#   Editor      : VIM
+#   File name   : fa.py
+#   Author      : Mofan
+#   Created date: 2019-01-21 23:56:12
+#   Description :
+#
+#================================================================
 
 DATA_DIR = 'data'
 DATA_SET = 'data_set'

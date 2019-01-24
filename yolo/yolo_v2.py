@@ -1,7 +1,15 @@
 #!/usr/bin/python3.5
 # -*- coding:utf-8 -*-
-# Author:leeyoshinari
-#-----------------------------------------------------------------------------------
+#================================================================
+#   Copyright (C) 2019 * Ltd. All rights reserved.
+#
+#   Editor      : VIM
+#   File name   : fa.py
+#   Author      : Mofan
+#   Created date: 2019-01-21 23:56:12
+#   Description :
+#
+#================================================================
 
 import tensorflow as tf
 import numpy as np
