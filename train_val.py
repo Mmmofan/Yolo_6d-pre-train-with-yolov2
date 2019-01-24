@@ -7,7 +7,8 @@
 #   File name   : fa.py
 #   Author      : Mofan
 #   Created date: 2019-01-21 23:56:12
-#   Description :
+#   Description : It's a pre-train the yolo_v2 model with linemod
+# dataset will be later used in Yolo_6d
 #
 #================================================================
 import tensorflow as tf
@@ -36,23 +37,24 @@ class Train(object):
         self.initial_learn_rate = cfg.LEARN_RATE
         self.output_dir = os.path.join(cfg.DATA_DIR, 'output')
         self.backup_dir = os.path.join(cfg.DATA_DIR, 'backup')
-        # weight_file = os.path.join(self.output_dir, cfg.WEIGHTS_FILE)
+        weight_file = os.path.join(self.output_dir, cfg.WEIGHTS_FILE)
         # weight_file = os.path.join(self.output_dir, 'yolo_v2.ckpt-3425')
         self.labels_test = None
         self.labels_train = None
 
-        # self.variable_to_restore = tf.global_variables()
+        self.variable_to_restore = tf.global_variables()[:-8]
         self.variable_to_save = tf.global_variables()
-        # self.restorer = tf.train.Saver(self.variable_to_restore)
-        self.saver = tf.train.Saver(self.variable_to_save)
+        self.restorer = tf.train.Saver(self.variable_to_restore, max_to_keep=6)
+        self.saver = tf.train.Saver(self.variable_to_save, max_to_keep=6)
         self.summary_op = tf.summary.merge_all()
         self.writer = tf.summary.FileWriter(self.output_dir)
 
         self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
         self.learn_rate = tf.train.exponential_decay(self.initial_learn_rate, self.global_step, 1250, 0.1, name='learn_rate')
-        # self.learn_rate = tf.train.piecewise_constant(self.global_step, [100, 190, 10000, 15500], [1e-3, 5e-3, 1e-2, 1e-3, 1e-4])
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learn_rate).minimize(self.yolo.total_loss, global_step=self.global_step)
-        #self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learn_rate).minimize(self.yolo.total_loss, global_step=self.global_step)
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learn_rate).minimize(
+            self.yolo.total_loss, global_step=self.global_step)
+        #self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learn_rate).minimize(
+            # self.yolo.total_loss, global_step=self.global_step)
 
         self.average_op = tf.train.ExponentialMovingAverage(0.999).apply(tf.trainable_variables())
         with tf.control_dependencies([self.optimizer]):
@@ -62,60 +64,62 @@ class Train(object):
         self.sess = tf.Session(config=config)
         self.sess.run(tf.global_variables_initializer())
 
-        # print('Restore weights from:', weight_file)
-        # self.restorer.restore(self.sess, weight_file)
+        print('Restore weights from:', weight_file)
+        self.restorer.restore(self.sess, weight_file)
         self.writer.add_graph(self.sess.graph)
 
     def train(self):
         self.labels_train = self.data.load_labels('train')
         self.labels_test = self.data.load_labels('test')
 
-        num = 1
         initial_time = time.time()
         lowest_loss = 1e4
 
-        for step in xrange(1, self.max_step + 1):
-            images, labels = self.data.next_batches(self.labels_train)
-            feed_dict = {self.yolo.images: images, self.yolo.labels: labels}
+        epochs = self.data.epoch
+        epoch = 0
+        while epoch < epochs:
+            for step in xrange(1, self.max_step + 1):
+                images, labels = self.data.next_batches(self.labels_train)
+                feed_dict = {self.yolo.images: images, self.yolo.labels: labels}
 
-            if step % self.summary_iter == 0:
-                if step % 30 == 0:
-                    print("   Testing... ")
-                    self.test()
+                if step % self.summary_iter == 0:  # summary_iter == 5
+                    if step % 30 == 0:
+                        print("Testing... ")
+                        self.test(epoch)
 
-                    summary_, loss, logit, _ = self.sess.run([self.summary_op, self.yolo.total_loss, self.yolo.logits, self.train_op], feed_dict = feed_dict)
-                    sum_loss = 0
+                        summary_, loss, logit, _ = self.sess.run([self.summary_op, self.yolo.total_loss, self.yolo.logits, self.train_op], feed_dict = feed_dict)
 
-                    log_str = ('{} Epoch: {}, Step: {},\n train_Loss: {:.4f}, test_Loss: {:.4f},\n Remain: {}, learning rate: {}').format(
-                        datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), self.data.epoch, int(step),
-                        loss, sum_loss/num, self.remain(step, initial_time), self.learn_rate.eval(session=self.sess))
-                    print(log_str)
+                        log_str = ('{} Epoch: {}, Step: {},\n train_Loss: {:.4f}, Remain: {},\n learning rate: {}\n').format(
+                            datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), epoch+1, int(step),
+                            loss, self.remain(step, initial_time), self.learn_rate.eval(session=self.sess))
+                        print(log_str)
 
-                    if loss < lowest_loss and step > 100:
-                        lowest_loss = loss
-                        print('\n Best model! Save ckpt file to {} '.format(self.output_dir))
-                        self.saver.save(self.sess, self.backup_dir + '/yolo_v2.ckpt', global_step = step)
+                        if loss < lowest_loss and step > 100:
+                            lowest_loss = loss
+                            print('\n Best model! Save ckpt file to {} \n'.format(self.output_dir))
+                            self.saver.save(self.sess, self.backup_dir + '/yolo_v2_best.ckpt')
 
-                    if loss < 1e4:
-                        pass
+                        if loss < 1e4:
+                            pass
+                        else:
+                            print('loss > 1e04')
+                            break
+
                     else:
-                        print('loss > 1e04')
-                        break
+                        summary_, _ = self.sess.run([self.summary_op, self.train_op], feed_dict = feed_dict)
+
+                    self.writer.add_summary(summary_, step)
 
                 else:
-                    summary_, _ = self.sess.run([self.summary_op, self.train_op], feed_dict = feed_dict)
+                    self.sess.run(self.train_op, feed_dict = feed_dict)
 
-                self.writer.add_summary(summary_, step)
-
-            else:
-                self.sess.run(self.train_op, feed_dict = feed_dict)
-
-            if step % self.saver_iter == 0:
-                self.saver.save(self.sess, self.output_dir + '/yolo_v2.ckpt', global_step = step)
+                if step % self.saver_iter == 0:  # saver_iter == 120
+                    self.saver.save(self.sess, self.output_dir + '/yolo_v2.ckpt', global_step = step)
+            epoch += 1
 
         self.saver.save(self.sess, self.output_dir + '/yolo_v2.ckpt', global_step=self.global_step)
 
-    def test(self):
+    def test(self, epoch):
         sum_loss = 0
         images, labels = self.data.next_batches_test(self.labels_train)
         feed_dict = {self.yolo.images: images, self.yolo.labels: labels}
@@ -131,7 +135,7 @@ class Train(object):
                 correct += 1
         acc = correct / self.yolo.batch_size
 
-        print('Epoch: {} in testing, loss: {}, accuracy: {}\n'.format(self.data.epoch, sum_loss, acc))
+        print('Epoch: {} in testing, loss: {}, accuracy: {}\n'.format(epoch+1, sum_loss, acc))
 
     def softmax(self, X, theta = 1.0, axis = None):
         """

@@ -1,3 +1,15 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+#================================================================
+#   Copyright (C) 2019 * Ltd. All rights reserved.
+#
+#   Editor      : VIM
+#   File name   : fa.py
+#   Author      : Mofan
+#   Created date: 2019-01-21 23:56:12
+#   Description :
+#
+#================================================================
 import os
 import yolo.config as cfg
 import numpy as np
@@ -19,8 +31,7 @@ class Linemod(object):
         self.test_list_name = []
 
         self.count = 0
-        self.epoch = 0
-        self.epoch_test = 0
+        self.epoch = 1
         self.prepare()
         self.total_train_num = len(self.train_list_name)
         self.total_test_num = len(self.test_list_name)
@@ -46,26 +57,24 @@ class Linemod(object):
     def next_batches(self, label):
         images = np.zeros([self.batch_size, 416, 416, 3], dtype=np.float32)
         labels = np.zeros([self.batch_size, 15], dtype=np.float32)
-        batch_list = label[self.epoch * self.batch_size : (self.epoch+1) * self.batch_size]
+        batch_list = label[self.count * self.batch_size : (self.count+1) * self.batch_size]
         num = 0
         while num < self.batch_size:
             images[num, :, :, :] = self.image_read(batch_list[num][0])
             labels[num] = self.label_read(batch_list[num][1])
             num += 1
-            self.count += 1
-        self.epoch += 1
+        self.count += 1
         return images, labels
 
     def next_batches_test(self, label):
         images = np.zeros([self.batch_size, 416, 416, 3], dtype=np.float32)
         labels = np.zeros([self.batch_size, 15], dtype=np.float32)
-        batch_list = label[self.epoch_test * self.batch_size : (self.epoch_test+1) * self.batch_size]
+        batch_list = label[self.count * self.batch_size : (self.count+1) * self.batch_size]
         num = 0
         while num < self.batch_size:
             images[num, :, :, :] = self.image_read(batch_list[num][0])
-            label[num] = self.label_read(batch_list[num][1])
+            labels[num] = self.label_read(batch_list[num][1])
             num += 1
-        self.epoch_test += 1
         return images, labels
 
     def image_read(self, imagename):
